@@ -348,19 +348,59 @@ const commands = {
         });
     },
 
+    // Install cimport/cdimport tools from official repo
+    install: async (tool) => {
+        if (!tool) {
+            console.log('\x1b[31m[duckling]\x1b[0m Usage: node duckling.js install cimport');
+            console.log('\x1b[31m[duckling]\x1b[0m Usage: node duckling.js install cdimport');
+            return;
+        }
+
+        const TOOLS_REPO = 'DUCKLINGS-JS/c-cdimport';
+        const RAW_URL = `https://raw.githubusercontent.com/${TOOLS_REPO}/main/duckling.js`;
+
+        console.log(`\x1b[36m[duckling]\x1b[0m Fetching latest ${tool} from ${TOOLS_REPO}...`);
+
+        const file = await new Promise((resolve, reject) => {
+            https.get(RAW_URL, (res) => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => resolve({ status: res.statusCode, data }));
+            }).on('error', reject);
+        });
+
+        if (file.status !== 200) {
+            console.log(`\x1b[31m[duckling]\x1b[0m Failed to fetch — status ${file.status}`);
+            return;
+        }
+
+        const toolsDir = path.join(process.cwd(), '.duckling_tools');
+        if (!fs.existsSync(toolsDir)) fs.mkdirSync(toolsDir, { recursive: true });
+
+        const outPath = path.join(toolsDir, `${tool}.js`);
+        fs.writeFileSync(outPath, file.data);
+        console.log(`\x1b[32m[duckling]\x1b[0m ✓ ${tool} installed to .duckling_tools/${tool}.js`);
+        console.log(`\x1b[33m[duckling]\x1b[0m Run with: node .duckling_tools/${tool}.js`);
+    },
+
     help: () => {
         console.log(`
 \x1b[36mduckling — SΩ-ENGINE Package Manager\x1b[0m
 
 Commands:
-  node duckling.js key "<token>"              Set GitHub token (required for cimport)
-  node duckling.js cimport "<definition>"     Create and publish a module
-  node duckling.js cdimport "<github url>"    Install modules from GitHub
-  node duckling.js list                       List installed modules
-  node duckling.js help                       Show this message
+  node duckling.js install cimport          Install cimport from official repo
+  node duckling.js install cdimport         Install cdimport from official repo
+  node duckling.js key "<token>"            Set GitHub token (required for cimport)
+  node duckling.js cimport "<definition>"   Create and publish a module
+  node duckling.js cdimport "<github url>"  Install modules from GitHub
+  node duckling.js list                     List installed modules
+  node duckling.js help                     Show this message
 
 cimport format:
   "name,exports=[fn1,fn2,fn3],requires=[basics,UI],version=1.0"
+
+Official tools repo:
+  github.com/DUCKLINGS-JS/c-cdimport
 
 Get a GitHub token:
   github.com/settings/tokens → Generate new token → repo scope
@@ -380,6 +420,7 @@ Get a GitHub token:
     if (!cmd || cmd === 'help') { commands.help(); return; }
     if (cmd === 'key') { commands.key(arg); return; }
     if (cmd === 'list') { commands.list(); return; }
+    if (cmd === 'install') { await commands.install(arg); return; }
     if (cmd === 'cimport') { await commands.cimport(process.argv.slice(3).join(' ')); return; }
     if (cmd === 'cdimport') { await commands.cdimport(arg); return; }
 
